@@ -1,8 +1,9 @@
 using System.Reflection;
-using System.Text;
-using System.Text.Json;
 using Confluent.Kafka;
+using Microsoft.Azure.Cosmos;
+using MyApp.ApiService.Data.Cosmos;
 using MyApp.ApiService.Models;
+using MyApp.ApiService.Serializers;
 using MyApp.ServiceDefaults;
 using OpenTelemetry.Trace;
 
@@ -16,6 +17,23 @@ builder.AddServiceDefaults(serviceName, serviceVersion);
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
+var options = new CosmosClientOptions
+{
+    HttpClientFactory = () => new HttpClient(new HttpClientHandler()
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    }),
+    ConnectionMode = ConnectionMode.Gateway,
+    ServerCertificateCustomValidationCallback = (_, _, _) => true,
+    LimitToEndpoint = true
+};
+
+var connectionString = builder.Configuration.GetConnectionString("Cosmos");
+
+builder.Services.AddSingleton<CosmosClient>(_ =>
+    new CosmosClient(connectionString, options));
+
+builder.Services.AddScoped<CosmosRepository>();
 
 builder.AddKafkaProducer<string, Product>("broker",
     (settings) => { },
@@ -45,14 +63,23 @@ app.MapPost("products/produces",
         await producer.ProduceAsync("products", message, cancellationToken);
     });
 
+app.MapPost("products/cosmos",
+    async (Product product, CosmosRepository cosmosRepository, CancellationToken cancellationToken) =>
+    {
+        await cosmosRepository.SaveProduct(product, cancellationToken);
+    });
+
+app.MapGet("products/{id}/cosmos",
+    async (string id, CosmosRepository cosmosRepository, CancellationToken cancellationToken) =>
+    {
+        var product = await cosmosRepository.GetProduct(id, cancellationToken);
+
+        if (product is null)
+            return Results.NotFound();
+
+        return Results.Ok(product);
+    });
+
 app.MapDefaultEndpoints();
 
 app.Run();
-
-public class JsonSerializer<T> : ISerializer<T>
-{
-    public byte[] Serialize(T data, SerializationContext context)
-    {
-        return JsonSerializer.SerializeToUtf8Bytes(data);
-    }
-}
