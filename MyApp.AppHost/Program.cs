@@ -1,3 +1,5 @@
+using Projects;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
@@ -11,13 +13,13 @@ var cosmos = builder.AddContainer("cosmos", "mcr.microsoft.com/cosmosdb/linux/az
     .WithEnvironment("AZURE_COSMOS_EMULATOR_PARTITION_COUNT", "10")
     .WithEnvironment("AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE", "true");
 
-var api = builder.AddProject<Projects.MyApp_Api>("api")
+var api = builder.AddProject<MyApp_Api>("api")
     .WithReference(cache)
     .WithReference(broker)
     .WithReference(cosmos.GetEndpoint("default"))
     .WithReference(database);
 
-builder.AddProject<Projects.MyApp_Worker>("worker")
+builder.AddProject<MyApp_Worker>("worker")
     .WithReference(api)
     .WithReference(broker);
 

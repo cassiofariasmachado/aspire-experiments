@@ -39,7 +39,7 @@ public static class Extensions
         string serviceName, string serviceVersion)
     {
         var resourceBuilder = ResourceBuilder.CreateDefault()
-            .AddService(serviceName: serviceName, serviceVersion: serviceVersion);
+            .AddService(serviceName, serviceVersion: serviceVersion);
 
         builder.Logging.AddOpenTelemetry(logging =>
         {
@@ -59,10 +59,8 @@ public static class Extensions
             .WithTracing(tracing =>
             {
                 if (builder.Environment.IsDevelopment())
-                {
                     // We want to view all traces in development
                     tracing.SetSampler(new AlwaysOnSampler());
-                }
 
                 tracing.AddSource(serviceName)
                     .SetResourceBuilder(resourceBuilder)
@@ -126,11 +124,13 @@ public static class Extensions
         return app;
     }
 
-    private static MeterProviderBuilder AddBuiltInMeters(this MeterProviderBuilder meterProviderBuilder) =>
-        meterProviderBuilder.AddMeter(
+    private static MeterProviderBuilder AddBuiltInMeters(this MeterProviderBuilder meterProviderBuilder)
+    {
+        return meterProviderBuilder.AddMeter(
             "Microsoft.AspNetCore.Hosting",
             "Microsoft.AspNetCore.Server.Kestrel",
             "System.Net.Http");
+    }
 
     public static (string serviceName, string serviceVersion) GetAssembyNameAndVersion(this Assembly assembly)
     {

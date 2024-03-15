@@ -9,11 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.Confluent.Kafka" Version="8.0.0-preview.3.24105.21" />
+        <PackageReference Include="Aspire.Confluent.Kafka" Version="8.0.0-preview.3.24105.21"/>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <ProjectReference Include="..\MyApp.ServiceDefaults\MyApp.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\MyApp.ServiceDefaults\MyApp.ServiceDefaults.csproj"/>
     </ItemGroup>
 </Project>

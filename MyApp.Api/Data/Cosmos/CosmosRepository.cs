@@ -19,14 +19,17 @@ public class CosmosRepository
             .GetContainer("products");
     }
 
-    public Task SaveProduct(Product product, CancellationToken cancellationToken) =>
-        GetContainer().UpsertItemAsync(product, new PartitionKey(product.Id), cancellationToken: cancellationToken);
+    public Task SaveProduct(Product product, CancellationToken cancellationToken)
+    {
+        return GetContainer()
+            .UpsertItemAsync(product, new PartitionKey(product.Id), cancellationToken: cancellationToken);
+    }
 
     public async Task<Product?> GetProduct(string id, CancellationToken cancellationToken)
     {
         var response = await GetContainer()
             .ReadItemAsync<Product>(id, new PartitionKey(id), cancellationToken: cancellationToken);
-        
+
         if (response.StatusCode == HttpStatusCode.OK)
             return response.Resource;
 

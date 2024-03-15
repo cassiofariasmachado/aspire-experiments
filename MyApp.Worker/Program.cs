@@ -1,9 +1,9 @@
 using System.Reflection;
 using MyApp.ServiceDefaults;
-using MyApp.Worker;
+using MyApp.Worker.BackgroundServices;
 using MyApp.Worker.Clients;
 using MyApp.Worker.Clients.Models;
-using MyApp.Worker.Serializers;
+using MyApp.Worker.Messaging.Kafka;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -15,9 +15,9 @@ builder.AddKafkaConsumer<string, Product>("broker",
     settings => { settings.Config.GroupId = Guid.NewGuid().ToString(); },
     consumerBuilder => { consumerBuilder.SetValueDeserializer(new JsonDeserializer<Product>()); });
 
-builder.Services.AddHttpClient<ProductsApiClient>(client => client.BaseAddress = new("http://api"));
+builder.Services.AddHttpClient<ProductsApiClient>(client => client.BaseAddress = new Uri("http://api"));
 
-builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<VerifyProducts>();
 
 var host = builder.Build();
 

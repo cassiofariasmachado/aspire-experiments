@@ -1,7 +1,11 @@
 using System.Reflection;
 using Confluent.Kafka;
+using MassTransit;
 using Microsoft.Azure.Cosmos;
+using MyApp.ApiService.BackgroundServices;
 using MyApp.ApiService.Data.Cosmos;
+using MyApp.ApiService.Messaging.Consumers;
+using MyApp.ApiService.Messaging.Events;
 using MyApp.ApiService.Models;
 using MyApp.ApiService.Serializers;
 using MyApp.ServiceDefaults;
@@ -19,7 +23,7 @@ builder.Services.AddProblemDetails();
 
 var options = new CosmosClientOptions
 {
-    HttpClientFactory = () => new HttpClient(new HttpClientHandler()
+    HttpClientFactory = () => new HttpClient(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     }),
@@ -28,16 +32,50 @@ var options = new CosmosClientOptions
     LimitToEndpoint = true
 };
 
-var connectionString = builder.Configuration.GetConnectionString("Cosmos");
+// ==> Configure Cosmos connection
+var cosmosConnectionString = builder.Configuration.GetConnectionString("Cosmos");
 
 builder.Services.AddSingleton<CosmosClient>(_ =>
-    new CosmosClient(connectionString, options));
+    new CosmosClient(cosmosConnectionString, options));
 
 builder.Services.AddScoped<CosmosRepository>();
 
+// ==> Configure Kafka direct connection
 builder.AddKafkaProducer<string, Product>("broker",
-    (settings) => { },
+    settings => { },
     producerSettings => { producerSettings.SetValueSerializer(new JsonSerializer<Product>()); });
+
+// ==> Configure MassTransit
+builder.Services.AddMassTransit(x =>
+{
+    // Injected by Aspire
+    var brokerConnectionString = builder.Configuration.GetConnectionString("broker");
+
+    x.UsingInMemory();
+
+    x.AddRider(rider =>
+    {
+        rider.AddConsumer<MessageReceivedConsumer>();
+
+        rider.AddProducer<MessageReceived>("message-received");
+
+        rider.UsingKafka((context, k) =>
+        {
+            k.Host(brokerConnectionString);
+
+            k.TopicEndpoint<MessageReceived>("message-received", "consumer-group-message-received",
+                e =>
+                {
+                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    e.ConfigureConsumer<MessageReceivedConsumer>(context);
+                });
+        });
+    });
+});
+
+// ==> Configure background services
+builder.Services.AddHostedService<MessageGenerator>();
+
 
 var app = builder.Build();
 
