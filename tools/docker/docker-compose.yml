@@ -3,60 +3,80 @@ version: "3.8"
 name: aspire-app-experiments
 
 services:
-  kafka-ui:
-    container_name: kafka-ui
-    image: provectuslabs/kafka-ui:latest
+  broker:
+    # Configuration of broker based on: https://raw.githubusercontent.com/confluentinc/cp-all-in-one/7.6.0-post/cp-all-in-one-kraft/docker-compose.yml
+    image: confluentinc/cp-kafka:7.6.0
+    hostname: broker
+    container_name: broker
     ports:
-      - 8080:8080
-    depends_on:
-      - kafka
+      - 9092:9092
+      - 9101:9101
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
-      DYNAMIC_CONFIG_ENABLED: 'true'
-
-  kafka:
-    image: confluentinc/cp-kafka:7.2.1
-    hostname: kafka
-    container_name: kafka
-    ports:
-      - "9092:9092"
-      - "9997:9997"
-    environment:
-      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_JMX_PORT: 9997
-      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.rmi.port=9997
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
       KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-    volumes:
-      - ../scripts/update-run.sh:/tmp/update-run.sh
-    command: "bash -c 'if [ ! -f /tmp/update-run.sh ]; then echo \"ERROR: Did you forget the update-run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update-run.sh && /etc/confluent/docker/run ; fi'"
+      # Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid" 
+      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.html#kafka-storage-sh
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
 
-  kafka-init-topics:
-    image: confluentinc/cp-kafka:7.2.1
+  broker-control-center:
+    # Configuration of control center based on: https://raw.githubusercontent.com/confluentinc/cp-all-in-one/7.6.0-post/cp-all-in-one-kraft/docker-compose.yml
+    image: confluentinc/cp-enterprise-control-center:7.6.0
+    hostname: broker-control-center
+    container_name: broker-control-center
     depends_on:
-      - kafka
+      - broker
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: "broker:29092"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+
+  broker-init-topics:
+    image: confluentinc/cp-kafka:7.6.0
+    hostname: broker-init-topics
+    container_name: broker-init-topics
+    depends_on:
+      - broker
     volumes:
       - ../scripts/crete-topics.sh:/tmp/crete-topics.sh
     command: "bash -c 'echo Waiting for Kafka to be ready... && \
-               cub kafka-ready -b kafka:29092 1 30 && \
-               /tmp/crete-topics.sh kafka:29092'"
+               cub kafka-ready -b broker:29092 1 30 && \
+               /tmp/crete-topics.sh broker:29092'"
+
+  broker-ui:
+    image: provectuslabs/kafka-ui:v0.7.1
+    hostname: broker-ui
+    container_name: broker-ui
+    ports:
+      - 8080:8080
+    depends_on:
+      - broker
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:29092
+      DYNAMIC_CONFIG_ENABLED: 'false'
 
   cosmos:
+    hostname: cosmos
     container_name: cosmos
-    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:mongodb
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
     ports:
       - "8081:8081"
       - "10251:10251"
