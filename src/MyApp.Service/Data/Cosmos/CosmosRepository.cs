@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using Microsoft.Azure.Cosmos;
-using MyApp.ApiService.Models;
+using MyApp.Service.Models;
 
-namespace MyApp.ApiService.Data.Cosmos;
+namespace MyApp.Service.Data.Cosmos;
 
 public class CosmosRepository
 {

@@ -1,14 +1,13 @@
-using System.Net.Http.Json;
-using MyApp.Worker.Clients.Models;
+using MyApp.Service.Models;
 using OpenTelemetry.Trace;
 
-namespace MyApp.Worker.Clients;
+namespace MyApp.Service.Clients;
 
 public class ProductsApiClient(HttpClient httpClient, Tracer tracer)
 {
     public async Task<Product?> GetProductAsync(string id)
     {
-        using var span = tracer.StartActiveSpan("[Products API Client] Get product by id", SpanKind.Client);
+        using var span = tracer.StartActiveSpan("get product by id", SpanKind.Client);
 
         return await httpClient.GetFromJsonAsync<Product>($"/products/{id}");
     }

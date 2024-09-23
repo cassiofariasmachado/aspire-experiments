@@ -10,12 +10,15 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\MyApp.Api\MyApp.Api.csproj"/>
-        <ProjectReference Include="..\MyApp.Worker\MyApp.Worker.csproj"/>
+        <ProjectReference Include="..\MyApp.Service\MyApp.Service.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.Hosting" Version="8.0.0-preview.3.24105.21"/>
+        <PackageReference Include="Aspire.Hosting.AppHost" Version="8.0.2" />
+        <PackageReference Include="Aspire.Hosting.Kafka" Version="8.0.2" />
+        <PackageReference Include="Aspire.Hosting.MongoDB" Version="8.0.2" />
+        <PackageReference Include="Aspire.Hosting.Redis" Version="8.0.2" />
+        <PackageReference Include="Google.Protobuf" Version="3.27.2" />
     </ItemGroup>
 
 </Project>
